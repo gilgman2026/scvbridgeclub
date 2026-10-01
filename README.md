@@ -1,4 +1,4 @@
-# Bridge Seating & Results
+# SCV Bridge Club Seating & Results
 
 A static web page (GitHub Pages) that shows bridge game seating and results from a public Google Sheet.
 
