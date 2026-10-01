@@ -313,6 +313,23 @@ function mpsCell(row) {
 
 
 // ---- Result report rendering (adapted from BridgeScores) ------------------
+// Deliberate difference from BridgeScores: a title like
+//   "Wednesday Morning Pairs Wednesday Mor Session September 30, 2026"
+// is shown as "Wednesday Morning Pairs — September 30, 2026" (everything before
+// the repeated weekday, plus the date). Anything else falls back to the
+// BridgeScores wording.
+function tidyTitle(line) {
+  const words = line.trim().split(/\s+/);
+  if (DAY_WORDS.includes(words[0])) {
+    const dup = words.indexOf(words[0], 1);
+    const date = /([A-Za-z]+\s+\d{1,2},?\s+\d{4})\s*$/.exec(line.trim());
+    if (dup > 0 && date) {
+      return words.slice(0, dup).map(w => TIME_ABBR[w] || w).join(" ") + " — " + date[1];
+    }
+  }
+  return parseTitleLine(line);
+}
+
 function renderReportBlock(info, lines, highlight) {
   const rows = [];
   for (const line of info.dataLines) {
@@ -321,7 +338,7 @@ function renderReportBlock(info, lines, highlight) {
   }
   if (!rows.length) return "";
 
-  const title = info.titleIdx !== null ? parseTitleLine(lines[info.titleIdx]) : "";
+  const title = info.titleIdx !== null ? tidyTitle(lines[info.titleIdx]) : "";
   const subtitle = info.infoIdx !== null ? parseInfoLine(lines[info.infoIdx]) : "";
 
   const rowsHtml = rows.map(row => {
