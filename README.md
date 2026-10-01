@@ -2,7 +2,7 @@
 
 A static web page (GitHub Pages) that shows bridge game seating and results from a public Google Sheet.
 
-Live site: https://gilgman2026.github.io/Bridge-Seats/
+Live site: https://gilgman2026.github.io/scvbridgeclub/
 
 ## How it works
 
