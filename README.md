@@ -11,7 +11,7 @@ Live site: https://gilgman2026.github.io/Bridge-Seats/
 - Every tab except `Results` is treated as a game; the tab name is shown as the game's label.
 - Each game tab is read like this:
   - The **Table** column is the one between the *North / South* and *East / West* headings. Everything else (flights, other columns) is ignored.
-  - Seats are the two columns under each heading: N, S, E, W. Blank seats show as TBD.
+  - Each heading has two name columns. Pairs choose their own seats, so a pair is shown together as "North / South" or "East / West" with no individual direction. Blank names show as TBD.
   - For each of the four name columns, count down from the first table to the first blank cell. The **longest** of those four runs sets how many tables are shown. Names below a blank are not shown until the gap is filled.
   - The game date is the first `m/d/yyyy` cell found in sheet rows 25-30, columns A-H.
 - The `Results` tab holds raw STAC score reports, one report line per row in column A. Each report's date (from its title line) is matched to the game's date and shown under the seating. No match shows "No results yet".

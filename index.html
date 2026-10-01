@@ -70,29 +70,23 @@
     font-size: 13px; text-transform: uppercase; letter-spacing: .05em;
     color: var(--sub); margin: 20px 0 10px;
   }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
   .table-card {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px;
-    display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas:
-      ". n ."
-      "w t e"
-      ". s .";
-    gap: 8px 10px; align-items: center;
+    padding: 12px; display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center;
   }
   .table-card.hit { background: var(--hit-bg); border-color: var(--hit-border); }
-  .seat { text-align: center; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
-  .seat .dir { display: block; font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: .06em; }
-  .seat .name { font-size: 15px; }
-  .seat.tbd .name { color: var(--sub); font-style: italic; }
-  .seat.me .name { font-weight: 700; }
-  .seat.n { grid-area: n; } .seat.s { grid-area: s; }
-  .seat.w { grid-area: w; } .seat.e { grid-area: e; }
   .tnum {
-    grid-area: t; width: 44px; height: 44px; border-radius: 50%;
+    grid-row: 1 / span 2; width: 48px; height: 48px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: 18px;
+    background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: 20px;
   }
+  .pair { min-width: 0; overflow-wrap: anywhere; line-height: 1.3; }
+  .pair .dir { display: block; font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: .06em; text-transform: uppercase; }
+  .pair .name { font-size: 15px; display: block; }
+  .pair .name.tbd { color: var(--sub); font-style: italic; }
+  .pair .name.me { font-weight: 700; }
+  .pair + .pair { border-top: 1px solid var(--border); padding-top: 8px; }
   .note { color: var(--sub); font-size: 14px; padding: 8px 2px; }
   .error { color: var(--ne); font-size: 14px; padding: 8px 2px; }
 
@@ -525,9 +519,11 @@ function pickDefault(games) {
   return dated.sort((a, b) => b.date - a.date)[0].gid;
 }
 
-function seatHtml(cls, dir, name, me) {
-  return `<div class="seat ${cls}${name ? "" : " tbd"}${me ? " me" : ""}">
-    <span class="dir">${dir}</span><span class="name">${name ? escapeHtml(name) : "TBD"}</span></div>`;
+function nameHtml(name, me) {
+  return `<span class="name${name ? "" : " tbd"}${me ? " me" : ""}">${name ? escapeHtml(name) : "TBD"}</span>`;
+}
+function pairHtml(label, a, b, meA, meB) {
+  return `<div class="pair"><span class="dir">${label}</span>${nameHtml(a, meA)}${nameHtml(b, meB)}</div>`;
 }
 
 function renderGame(game, q) {
@@ -536,11 +532,9 @@ function renderGame(game, q) {
   return `<h2 class="section">Seating</h2><div class="grid">` + game.tables.map(t => {
     const hit = [t.n, t.s, t.e, t.w].map(x => matchesQuery(x, q));
     return `<article class="table-card${hit.some(Boolean) ? " hit" : ""}" id="t-${escapeHtml(t.num)}">
-      ${seatHtml("n", "N", t.n, hit[0])}
-      ${seatHtml("w", "W", t.w, hit[3])}
       <div class="tnum">${escapeHtml(t.num)}</div>
-      ${seatHtml("e", "E", t.e, hit[2])}
-      ${seatHtml("s", "S", t.s, hit[1])}
+      ${pairHtml("North / South", t.n, t.s, hit[0], hit[1])}
+      ${pairHtml("East / West", t.e, t.w, hit[2], hit[3])}
     </article>`;
   }).join("") + `</div>`;
 }
@@ -565,7 +559,7 @@ function findMatches(q) {
   if (!q) return out;
   for (const g of state.games) {
     for (const t of g.tables || []) {
-      const seats = [["North", t.n, t.s], ["South", t.s, t.n], ["East", t.e, t.w], ["West", t.w, t.e]];
+      const seats = [["North / South", t.n, t.s], ["North / South", t.s, t.n], ["East / West", t.e, t.w], ["East / West", t.w, t.e]];
       for (const [dir, name, partner] of seats) {
         if (matchesQuery(name, q)) out.push({ gid: g.gid, game: g, table: t.num, dir, name, partner });
       }
