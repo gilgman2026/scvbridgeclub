@@ -25,6 +25,10 @@ Private working sheet --(IMPORTRANGE)--> **public sheet** (published to the web)
   `FALLBACK_TABS` in the script (gids 0, 2089762461 and 1628264295).
 - Tab data is fetched as CSV from `.../gviz/tq?tqx=out:csv&gid=<gid>`. **Always fetch by gid.** With
   `sheet=<name>`, Google silently returns the *first* tab when the name doesn't match, with no error.
+- The page only re-renders when the fetched data actually changed (signature compare in `load()`), and it
+  restores the scroll position when it does. This was added after the owner reported being unable to scroll
+  back up on iPhone Chrome (WebKit); redrawing the DOM mid-swipe was the suspected cause but could not be
+  reproduced in Chromium, so it is unconfirmed. A "↑ Top" button appears after scrolling 300 px.
 - Google allows these cross-origin fetches from `github.io`. The page polls every 60 s (`REFRESH_MS`).
   End-to-end lag after an edit in the private sheet is roughly 2-4 minutes (IMPORTRANGE + publish cache
   + poll).

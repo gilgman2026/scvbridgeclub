@@ -87,6 +87,14 @@
   .pair .name.tbd { color: var(--sub); font-style: italic; }
   .pair .name.me { font-weight: 700; }
   .pair + .pair { border-top: 1px solid var(--border); padding-top: 8px; }
+  #totop {
+    position: fixed; right: 16px; bottom: 16px; z-index: 10;
+    font: inherit; font-size: 14px; font-weight: 600; padding: 10px 16px; cursor: pointer;
+    border: 1px solid var(--accent); border-radius: 999px;
+    background: var(--card); color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  #totop[hidden] { display: none; }
   .note { color: var(--sub); font-size: 14px; padding: 8px 2px; }
   .error { color: var(--ne); font-size: 14px; padding: 8px 2px; }
 
@@ -136,6 +144,7 @@
   <div class="tabs" id="tabs"></div>
   <div id="game"></div>
 </div>
+<button type="button" id="totop" aria-label="Back to top" hidden>↑ Top</button>
 
 <script>
 // ---------------------------------------------------------------------------
@@ -520,7 +529,7 @@ function parseResults(rows) {
 }
 
 // ---- State & rendering -----------------------------------------------------
-const state = { games: [], results: null, selected: null, query: "", error: null, updated: null };
+const state = { sig: "", games: [], results: null, selected: null, query: "", error: null, updated: null };
 const $ = id => document.getElementById(id);
 
 // Find-my-seat: starts after 2 characters and matches from the left of the name
@@ -617,9 +626,19 @@ function render() {
   } else {
     $("game").innerHTML = renderGame(g, q) + renderResults(g, q);
   }
+  updateStamp();
+}
+
+function updateStamp() {
   $("updated").textContent = state.updated
     ? `Updated ${state.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · refreshes automatically`
     : "Loading…";
+}
+
+function renderKeepScroll() {
+  const y = window.scrollY;
+  render();
+  if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
 }
 
 async function load() {
@@ -641,15 +660,22 @@ async function load() {
       if (parsed) games.push({ name: t.name, gid: t.gid, date: parsed.date, tables: parsed.tables });
     });
 
+    const results = resRows ? parseResults(resRows) : null;
+    // Only redraw when the data really changed: rebuilding the page while a
+    // phone is mid-scroll can cancel the swipe or reset the scroll position.
+    const sig = JSON.stringify([games.map(g => [g.gid, g.name, g.date && +g.date, g.tables, g.error]), results && results.lines]);
+    const changed = sig !== state.sig || state.error;
+    state.sig = sig;
     state.games = games;
-    state.results = resRows ? parseResults(resRows) : null;
+    state.results = results;
     if (!games.some(g => g.gid === state.selected)) state.selected = pickDefault(games);
     state.error = null;
     state.updated = new Date();
+    if (!changed) { updateStamp(); return; }
   } catch (e) {
     state.error = "Couldn't load the seating sheet. Please check your connection and try again.";
   }
-  render();
+  renderKeepScroll();
 }
 
 $("tabs").addEventListener("click", e => {
@@ -668,6 +694,10 @@ $("matches").addEventListener("click", e => {
   const card = document.getElementById("t-" + m.table);
   if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
 });
+
+const toTop = $("totop");
+toTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+window.addEventListener("scroll", () => { toTop.hidden = window.scrollY < 300; }, { passive: true });
 
 load();
 setInterval(load, REFRESH_MS);
