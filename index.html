@@ -129,7 +129,7 @@
   </header>
 
   <div class="search">
-    <input id="search" type="search" placeholder="Find my seat — type your name" autocomplete="off">
+    <input id="search" type="search" placeholder="Find my seat — type your first name" autocomplete="off">
     <ul class="matches" id="matches"></ul>
   </div>
 
@@ -342,7 +342,7 @@ function renderReportBlock(info, lines, highlight) {
   const subtitle = info.infoIdx !== null ? parseInfoLine(lines[info.infoIdx]) : "";
 
   const rowsHtml = rows.map(row => {
-    const isHighlighted = highlight && row.names.toLowerCase().includes(highlight);
+    const isHighlighted = highlight && row.names.split(" – ").some(n => matchesQuery(n, highlight));
     const overallCells = info.isDual ? `
       <td>${badgeOrDash(row.overallA, "a", true)}</td>
       <td>${badgeOrDash(row.overallB, "b", true)}</td>
@@ -516,12 +516,16 @@ function parseResults(rows) {
 const state = { games: [], results: null, selected: null, query: "", error: null, updated: null };
 const $ = id => document.getElementById(id);
 
+// Find-my-seat: starts after 2 characters and matches from the left of the name
+// (so "ru" finds Ruth Baker, but not Bruce or Baker).
+const MIN_QUERY = 2;
 function matchesQuery(name, q) {
-  if (!q) return false;
-  const hay = name.toLowerCase();
-  return q.split(/\s+/).every(w => hay.includes(w));
+  return !!q && name.toLowerCase().startsWith(q);
 }
-const normQuery = () => state.query.trim().toLowerCase();
+const normQuery = () => {
+  const q = state.query.trim().replace(/\s+/g, " ").toLowerCase();
+  return q.length >= MIN_QUERY ? q : "";
+};
 
 function fmtDate(d) {
   return d ? d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : "";
