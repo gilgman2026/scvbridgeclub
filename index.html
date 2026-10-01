@@ -601,7 +601,7 @@ function render() {
       <strong>${escapeHtml(m.name)}</strong> — Table ${escapeHtml(m.table)}, ${m.dir}
       ${m.partner ? `(partner ${escapeHtml(m.partner)})` : ""}
       · ${escapeHtml(m.game.name)}${m.game.date ? ", " + escapeHtml(fmtDate(m.game.date)) : ""}</li>`).join("") +
-    (q && !ms.length ? `<li class="nomatch" style="background:none;border:none;cursor:default">No one by that name is seated yet.</li>` : "");
+    (q && !ms.length ? `<li class="nomatch" style="background:none;border:none;cursor:default">Not found, is that your first name?</li>` : "");
   state._matches = ms;
 
   const g = games.find(x => x.gid === state.selected);
