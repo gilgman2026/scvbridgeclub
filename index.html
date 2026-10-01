@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge Seating &amp; Results</title>
+<style>
+  :root {
+    --bg: #eceae6;
+    --card: #ffffff;
+    --ink: #22252a;
+    --sub: #6f747c;
+    --border: #e1ded8;
+    --accent: #2a5da0;
+    --accent-bg: #d6e6f9;
+    --hit-bg: #fff3c4;
+    --hit-border: #e0b400;
+    --report-bg: #faf9f6;
+    --badge-a-bg: #d6e6f9; --badge-a-fg: #2a5da0;
+    --badge-b-bg: #d9f0dd; --badge-b-fg: #2c7a3d;
+    --badge-c-bg: #fbe6c8; --badge-c-fg: #a06a1f;
+    --ne: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181b; --card: #212328; --ink: #e9eaec; --sub: #9aa0a8; --border: #34373d;
+      --accent: #8ab4f0; --accent-bg: #27384f; --hit-bg: #4a4220; --hit-border: #c9a400;
+      --report-bg: #1b1d21;
+      --badge-a-bg: #27384f; --badge-a-fg: #8ab4f0;
+      --badge-b-bg: #25402b; --badge-b-fg: #7fd18f;
+      --badge-c-bg: #4a3a22; --badge-c-fg: #f0b867;
+      --ne: #ff7b6b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  header h1 { margin: 4px 0 2px; font-size: 22px; }
+  .updated { color: var(--sub); font-size: 12px; margin: 0 0 14px; }
+
+  .search { margin: 0 0 12px; }
+  .search input {
+    width: 100%; padding: 12px 14px; font-size: 16px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--card); color: var(--ink);
+  }
+  .matches { margin: 8px 0 0; padding: 0; list-style: none; }
+  .matches li {
+    background: var(--hit-bg); border: 1px solid var(--hit-border);
+    border-radius: 8px; padding: 8px 12px; margin-bottom: 6px;
+    font-size: 14px; cursor: pointer;
+  }
+  .nomatch { color: var(--sub); font-size: 14px; margin: 8px 2px 0; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+  .tabs button {
+    font: inherit; font-size: 14px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--card); color: var(--ink); text-align: left;
+  }
+  .tabs button[aria-pressed="true"] {
+    background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600;
+  }
+  .tabs .tdate { display: block; font-size: 12px; opacity: .8; font-weight: 400; }
+
+  h2.section {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--sub); margin: 20px 0 10px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .table-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px;
+    display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas:
+      ". n ."
+      "w t e"
+      ". s .";
+    gap: 8px 10px; align-items: center;
+  }
+  .table-card.hit { background: var(--hit-bg); border-color: var(--hit-border); }
+  .seat { text-align: center; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+  .seat .dir { display: block; font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: .06em; }
+  .seat .name { font-size: 15px; }
+  .seat.tbd .name { color: var(--sub); font-style: italic; }
+  .seat.me .name { font-weight: 700; }
+  .seat.n { grid-area: n; } .seat.s { grid-area: s; }
+  .seat.w { grid-area: w; } .seat.e { grid-area: e; }
+  .tnum {
+    grid-area: t; width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: 18px;
+  }
+  .note { color: var(--sub); font-size: 14px; padding: 8px 2px; }
+  .error { color: var(--ne); font-size: 14px; padding: 8px 2px; }
+
+  #results .report-wrap {
+    background: var(--report-bg); border-radius: 10px; padding: 18px 16px; overflow-x: auto;
+  }
+  .report-block + .report-block { margin-top: 26px; padding-top: 24px; border-top: 2px solid var(--border); }
+  .report-title { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+  .report-subtitle { font-size: 14px; color: var(--sub); margin: 0 0 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    text-align: left; font-size: 11px; letter-spacing: .04em; color: var(--sub);
+    font-weight: 600; padding: 0 10px 10px; border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.names { white-space: normal; }
+  tr.highlighted td { font-weight: 700; background: var(--hit-bg); }
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .badge-a { background: var(--badge-a-bg); color: var(--badge-a-fg); }
+  .badge-b { background: var(--badge-b-bg); color: var(--badge-b-fg); }
+  .badge-c { background: var(--badge-c-bg); color: var(--badge-c-fg); }
+  .badge.outline { background: transparent; border: 1.5px solid currentColor; }
+  .group-header th { text-align: center; border-bottom: 1px solid var(--border); }
+  thead tr:first-child th { border-bottom: none; }
+  .dash { color: #9a9ea5; }
+  .ne { color: var(--ne); font-style: italic; font-weight: 600; }
+  .mps-flt { color: var(--sub); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Bridge Seating &amp; Results</h1>
+    <p class="updated" id="updated">Loading…</p>
+  </header>
+
+  <div class="search">
+    <input id="search" type="search" placeholder="Find my seat — type your name" autocomplete="off">
+    <ul class="matches" id="matches"></ul>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="game"></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// CONFIGURATION — the only thing that normally needs editing.
+// This is the public sheet (the one published to the web), not the private one.
+const SHEET_ID = "1nLdE_Z0UacN_nEMlbukuesX8zBi_IVjtQEQNOTHDLYc";
+// Used only if the page cannot read the sheet's tab list. gid is the number
+// after "gid=" in the tab's address.
+const FALLBACK_TABS = [
+  { name: "Game 1 (teach)", gid: "0" },
+  { name: "Game 2 (open)",  gid: "2089762461" },
+  { name: "Results",        gid: "1628264295" }
+];
+const RESULTS_TAB_NAME = "Results";   // every other tab is treated as a game
+const REFRESH_MS = 60000;
+// Where the game date lives: sheet rows 25-30, columns A-H (1-based, inclusive).
+const DATE_ROWS = [25, 30];
+const DATE_COLS = [1, 8];
+// ---------------------------------------------------------------------------
+
+// ---- Result parsing: copied from BridgeScores (gilgman2026/BridgeScores index.html). ----
+// Keep in sync by hand if the STAC report format changes.
+const DAY_WORDS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const TIME_ABBR = { "Morn": "Morning", "Aft": "Afternoon", "Eve": "Evening" };
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function parseTitleLine(line) {
+  let words = line.trim().split(/\s+/);
+  if (words.length && DAY_WORDS.includes(words[0])) {
+    const dupIdx = words.indexOf(words[0], 1);
+    if (dupIdx > 0) words.splice(0, 1);
+  }
+  words = words.map(w => TIME_ABBR[w] || w);
+  const text = words.join(" ");
+  const sessionIdx = text.indexOf("Session");
+  if (sessionIdx === -1) return text;
+  const head = text.slice(0, sessionIdx + "Session".length).trim();
+  const tail = text.slice(sessionIdx + "Session".length).trim();
+  return tail ? `${head} — ${tail}` : head;
+}
+
+function parseInfoLine(line) {
+  const roundsMatch = line.match(/Scores after\s+(\d+)\s+rounds?/i);
+  const avgMatch = line.match(/Average:\s*([\d.]+)/i);
+  const sectionMatch = line.match(/Section\s+([A-Za-z0-9]+)\s+(.+?)\s*$/i);
+  const parts = [];
+  if (sectionMatch) parts.push(`Section ${sectionMatch[1]} · ${sectionMatch[2]}`);
+  if (roundsMatch) parts.push(`${roundsMatch[1]} rounds`);
+  if (avgMatch) parts.push(`Average: ${avgMatch[1]}`);
+  return parts.join(" · ");
+}
+
+// A pasted blob may contain more than one report back to back (e.g. N/S and
+// E/W sections). Each occurrence of the "Pair Pct Score" header line marks the
+// start of a new table; walk backward from it (skipping blank lines) to find
+// that report's title/info lines, and forward to the next report's header (or
+// end of input) to find where its data rows stop.
+//
+// Two source formats exist. The original has one rank group ("Section Rank")
+// with a single A/B/C sub-header line. A newer format adds a second group
+// ("Overall Rank" — ranking across both N/S and E/W sections combined) with
+// its own A/B/C repeated on the same sub-header line: "A  B  C  A  B  C".
+// Each report is detected and parsed independently, so a single paste can mix
+// old- and new-format reports and each renders with its own matching layout.
+function locateReports(lines) {
+  const headerIdxs = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/Pair/.test(lines[i]) && /Pct/.test(lines[i]) && /Score/.test(lines[i])) {
+      headerIdxs.push(i);
+    }
+  }
+  if (!headerIdxs.length) return [];
+
+  const reports = headerIdxs.map(headerIdx => {
+    const isDual = /Overall\s+Rank/i.test(lines[headerIdx]);
+
+    let subIdx = headerIdx;
+    const subLinePattern = isDual ? /^\s*A\s+B\s+C\s+A\s+B\s+C\s*$/ : /^\s*A\s+B\s+C\s*$/;
+    for (let i = headerIdx + 1; i < Math.min(headerIdx + 3, lines.length); i++) {
+      if (subLinePattern.test(lines[i])) { subIdx = i; break; }
+    }
+
+    const preceding = [];
+    for (let i = headerIdx - 1; i >= 0 && preceding.length < 2; i--) {
+      if (lines[i].trim()) preceding.unshift(i);
+    }
+    const titleIdx = preceding.length === 2 ? preceding[0] : null;
+    const infoIdx = preceding.length >= 1 ? preceding[preceding.length - 1] : null;
+
+    const subLine = lines[subIdx] || "";
+    const sectionA = subLine.indexOf("A");
+    const sectionB = subLine.indexOf("B");
+    const sectionC = subLine.indexOf("C");
+    const anchors = { sectionA, sectionB, sectionC };
+    if (isDual) {
+      anchors.overallA = subLine.indexOf("A", sectionA + 1);
+      anchors.overallB = subLine.indexOf("B", sectionB + 1);
+      anchors.overallC = subLine.indexOf("C", sectionC + 1);
+    }
+    return { headerIdx, subIdx, titleIdx, infoIdx, anchors, isDual };
+  });
+
+  for (let i = 0; i < reports.length; i++) {
+    const dataStart = reports[i].subIdx + 1;
+    const next = reports[i + 1];
+    const dataEnd = next ? (next.titleIdx !== null ? next.titleIdx : next.headerIdx) : lines.length;
+    reports[i].dataLines = lines.slice(dataStart, dataEnd);
+  }
+  return reports;
+}
+
+function classifyRankToken(tokenIndex, anchors) {
+  const entries = Object.entries(anchors).filter(([, pos]) => pos >= 0);
+  if (!entries.length) return null;
+  entries.sort((a, b) => Math.abs(tokenIndex - a[1]) - Math.abs(tokenIndex - b[1]));
+  return entries[0][0]; // "sectionA" | "sectionB" | "sectionC" | "overallA" | "overallB" | "overallC"
+}
+
+function parseDataLine(line, anchors) {
+  if (!line.trim()) return null;
+
+  const m = line.match(/^\s*(\d+)\s+([\d.]+)\s+([\d.]+)\s+([A-Z])\s*(.*)$/);
+  if (!m) return null;
+
+  const [, pair, pct, score, flt, restStr] = m;
+  const restStart = line.length - restStr.length;
+
+  const row = {
+    pair, pct, score, flt,
+    sectionA: null, sectionB: null, sectionC: null,
+    overallA: null, overallB: null, overallC: null,
+    mps: null, ne: false
+  };
+
+  // Walk tokens left to right classifying rank/MPS/NE markers, until we hit
+  // the first token that isn't one of those — that's where the Names field
+  // begins, and everything from there to end of line belongs to it (so a
+  // stray double space inside a name doesn't get mistaken for a column gap).
+  let namesRaw = null;
+  for (const tm of restStr.matchAll(/\S+/g)) {
+    const token = tm[0];
+    const absoluteIndex = restStart + tm.index;
+    if (/^\d+\.\d+\(\w+\)$/.test(token)) {
+      row.mps = token;
+    } else if (token === "NE") {
+      row.ne = true;
+    } else if (/^\d+$/.test(token)) {
+      const col = classifyRankToken(absoluteIndex, anchors);
+      if (col) row[col] = token;
+    } else {
+      namesRaw = line.slice(absoluteIndex);
+      break;
+    }
+  }
+
+  if (namesRaw === null || !/[A-Za-z]/.test(namesRaw)) return null;
+
+  row.names = namesRaw.replace(/\s+/g, " ").trim().replace(/ - /g, " – ");
+  return row;
+}
+
+function badgeOrDash(value, cls, outline) {
+  if (!value) return '<span class="dash">—</span>';
+  return `<span class="badge badge-${cls}${outline ? " outline" : ""}">${escapeHtml(value)}</span>`;
+}
+
+function mpsCell(row) {
+  if (row.ne) return '<span class="ne">NE</span>';
+  if (!row.mps) return '<span class="dash">—</span>';
+  return escapeHtml(row.mps);
+}
+
+
+// ---- Result report rendering (adapted from BridgeScores) ------------------
+function renderReportBlock(info, lines, highlight) {
+  const rows = [];
+  for (const line of info.dataLines) {
+    const row = parseDataLine(line, info.anchors);
+    if (row) rows.push(row);
+  }
+  if (!rows.length) return "";
+
+  const title = info.titleIdx !== null ? parseTitleLine(lines[info.titleIdx]) : "";
+  const subtitle = info.infoIdx !== null ? parseInfoLine(lines[info.infoIdx]) : "";
+
+  const rowsHtml = rows.map(row => {
+    const isHighlighted = highlight && row.names.toLowerCase().includes(highlight);
+    const overallCells = info.isDual ? `
+      <td>${badgeOrDash(row.overallA, "a", true)}</td>
+      <td>${badgeOrDash(row.overallB, "b", true)}</td>
+      <td>${badgeOrDash(row.overallC, "c", true)}</td>` : "";
+    return `<tr class="${isHighlighted ? "highlighted" : ""}">
+      <td>${escapeHtml(row.pair)}</td>
+      <td>${escapeHtml(row.pct)}</td>
+      <td>${escapeHtml(row.score)}</td>
+      <td class="mps-flt">${escapeHtml(row.flt)}</td>
+      <td>${badgeOrDash(row.sectionA, "a")}</td>
+      <td>${badgeOrDash(row.sectionB, "b")}</td>
+      <td>${badgeOrDash(row.sectionC, "c")}</td>${overallCells}
+      <td class="mps-flt">${mpsCell(row)}</td>
+      <td class="names">${escapeHtml(row.names)}</td>
+    </tr>`;
+  }).join("");
+
+  const theadHtml = info.isDual ? `
+      <tr class="group-header">
+        <th rowspan="2">PAIR</th><th rowspan="2">PCT %</th><th rowspan="2">SCORE</th><th rowspan="2">FLT</th>
+        <th colspan="3">Section Rank</th>
+        <th colspan="3">Overall Rank</th>
+        <th rowspan="2">MPS</th><th rowspan="2">NAMES</th>
+      </tr>
+      <tr><th>A</th><th>B</th><th>C</th><th>A</th><th>B</th><th>C</th></tr>` : `
+      <tr>
+        <th>PAIR</th><th>PCT %</th><th>SCORE</th><th>FLT</th>
+        <th>A</th><th>B</th><th>C</th><th>MPS</th><th>NAMES</th>
+      </tr>`;
+
+  return `<div class="report-block">
+    <p class="report-title">${escapeHtml(title)}</p>
+    <p class="report-subtitle">${escapeHtml(subtitle)}</p>
+    <table><thead>${theadHtml}</thead><tbody>${rowsHtml}</tbody></table>
+  </div>`;
+}
+
+// ---- Fetching --------------------------------------------------------------
+function parseCSV(text) {
+  const rows = []; let row = [], cur = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ",") { row.push(cur); cur = ""; }
+    else if (c === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (c !== "\r") cur += c;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+async function fetchCSV(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${encodeURIComponent(gid)}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return parseCSV(await res.text());
+}
+
+// Reads tab names and ids from the published sheet. Falls back to the
+// configured list if that is not possible.
+async function discoverTabs() {
+  try {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/htmlview`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const tabs = [];
+    const re = /items\.push\(\{name: "((?:[^"\\]|\\.)*)"[^}]*?gid: "(\d+)"/g;
+    let m;
+    while ((m = re.exec(html))) {
+      let name = m[1];
+      try { name = JSON.parse(`"${name}"`); } catch (e) { /* keep raw */ }
+      tabs.push({ name, gid: m[2] });
+    }
+    if (tabs.length) return tabs;
+  } catch (e) { /* fall through */ }
+  return FALLBACK_TABS;
+}
+
+// ---- Seating parsing -------------------------------------------------------
+const ZW = /[​‌‍﻿]/g;
+const cleanCell = s => (s || "").replace(ZW, "").replace(/\s+/g, " ").trim();
+const DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+
+function findGameDate(grid) {
+  // Scan the agreed window, row by row, left to right; stop at the first date.
+  for (let r = DATE_ROWS[0] - 1; r <= DATE_ROWS[1] - 1; r++) {
+    for (let c = DATE_COLS[0] - 1; c <= DATE_COLS[1] - 1; c++) {
+      const m = DATE_RE.exec((grid[r] && grid[r][c]) || "");
+      if (m) return { date: new Date(+m[3], +m[1] - 1, +m[2]), r, c };
+    }
+  }
+  return { date: null, r: -1, c: -1 };
+}
+
+// Returns null if the tab doesn't look like a seating chart.
+function parseSeating(rows) {
+  const grid = rows.map(r => r.map(cleanCell));
+  const hdr = grid.findIndex(r => r.includes("North / South") && r.includes("East / West"));
+  if (hdr < 0) return null;
+  const h = grid[hdr];
+  const ns = h.indexOf("North / South");
+  const ew = h.indexOf("East / West");
+
+  // The Table column is the one between the North/South and East/West headings.
+  let tcol = -1;
+  for (let i = ns + 1; i < ew; i++) if (h[i] === "Table") tcol = i;
+
+  const { date, r: dr, c: dc } = findGameDate(grid);
+  const body = grid.slice(hdr + 1).map(r => r.slice());
+  if (dr > hdr) { const rr = body[dr - hdr - 1]; if (rr) rr[dc] = ""; } // not a name
+
+  const cols = [ns, ns + 1, ew, ew + 1];           // N, S, E, W
+  // Uninterrupted run from the first table down to the first blank, per column.
+  const runs = cols.map(c => {
+    let n = 0;
+    while (n < body.length && (body[n][c] || "") !== "") n++;
+    return n;
+  });
+  const count = Math.max(...runs);
+  const tables = [];
+  for (let i = 0; i < count; i++) {
+    const r = body[i];
+    tables.push({
+      num: tcol >= 0 && r[tcol] ? r[tcol] : String(i + 1),
+      n: r[ns] || "", s: r[ns + 1] || "", e: r[ew] || "", w: r[ew + 1] || ""
+    });
+  }
+  return { date, tables };
+}
+
+// ---- Results ---------------------------------------------------------------
+const MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+function reportDate(titleLine) {
+  const m = /([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/.exec(titleLine || "");
+  if (!m) return null;
+  const mo = MONTHS.indexOf(m[1].toLowerCase());
+  return mo < 0 ? null : new Date(+m[3], mo, +m[2]);
+}
+const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+// Pasting a report into a sheet cell drops the leading spaces on the A/B/C
+// sub-header line, but the rank columns are located by character position.
+// Put the indent back: the first "A" sits 3 characters left of "Section".
+function restoreSubHeaderIndent(lines) {
+  for (let i = 1; i < lines.length; i++) {
+    if (!/^A\s+B\s+C(\s+A\s+B\s+C)?\s*$/.test(lines[i])) continue;
+    for (let j = i - 1; j >= Math.max(0, i - 2); j--) {
+      if (/Pair/.test(lines[j]) && /Pct/.test(lines[j]) && /Score/.test(lines[j])) {
+        const s = lines[j].indexOf("Section");
+        if (s >= 3) lines[i] = " ".repeat(s - 3) + lines[i];
+        break;
+      }
+    }
+  }
+  return lines;
+}
+
+function parseResults(rows) {
+  const lines = restoreSubHeaderIndent(rows.map(r => r[0] || ""));
+  const reports = locateReports(lines);
+  return { lines, reports: reports.map(info => ({
+    info, date: info.titleIdx !== null ? reportDate(lines[info.titleIdx]) : null
+  })) };
+}
+
+// ---- State & rendering -----------------------------------------------------
+const state = { games: [], results: null, selected: null, query: "", error: null, updated: null };
+const $ = id => document.getElementById(id);
+
+function matchesQuery(name, q) {
+  if (!q) return false;
+  const hay = name.toLowerCase();
+  return q.split(/\s+/).every(w => hay.includes(w));
+}
+const normQuery = () => state.query.trim().toLowerCase();
+
+function fmtDate(d) {
+  return d ? d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : "";
+}
+
+function pickDefault(games) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dated = games.filter(g => g.date);
+  if (!dated.length) return games[0] ? games[0].gid : null;
+  const upcoming = dated.filter(g => g.date >= today).sort((a, b) => a.date - b.date);
+  if (upcoming.length) return upcoming[0].gid;
+  return dated.sort((a, b) => b.date - a.date)[0].gid;
+}
+
+function seatHtml(cls, dir, name, me) {
+  return `<div class="seat ${cls}${name ? "" : " tbd"}${me ? " me" : ""}">
+    <span class="dir">${dir}</span><span class="name">${name ? escapeHtml(name) : "TBD"}</span></div>`;
+}
+
+function renderGame(game, q) {
+  if (game.error) return `<p class="error">Couldn't load this game (${escapeHtml(game.error)}).</p>`;
+  if (!game.tables.length) return `<p class="note">No seating has been assigned yet.</p>`;
+  return `<h2 class="section">Seating</h2><div class="grid">` + game.tables.map(t => {
+    const hit = [t.n, t.s, t.e, t.w].map(x => matchesQuery(x, q));
+    return `<article class="table-card${hit.some(Boolean) ? " hit" : ""}" id="t-${escapeHtml(t.num)}">
+      ${seatHtml("n", "N", t.n, hit[0])}
+      ${seatHtml("w", "W", t.w, hit[3])}
+      <div class="tnum">${escapeHtml(t.num)}</div>
+      ${seatHtml("e", "E", t.e, hit[2])}
+      ${seatHtml("s", "S", t.s, hit[1])}
+    </article>`;
+  }).join("") + `</div>`;
+}
+
+function renderResults(game, q) {
+  let inner;
+  if (state.results === null) {
+    inner = `<p class="note">Results unavailable right now.</p>`;
+  } else {
+    const { lines, reports } = state.results;
+    const mine = game.date ? reports.filter(r => sameDay(r.date, game.date)) : [];
+    const blocks = mine.map(r => renderReportBlock(r.info, lines, q)).filter(Boolean);
+    inner = blocks.length
+      ? `<div class="report-wrap">${blocks.join("")}</div>`
+      : `<p class="note">No results yet — this game hasn't been played, or the results haven't been posted.</p>`;
+  }
+  return `<h2 class="section">Results</h2><div id="results">${inner}</div>`;
+}
+
+function findMatches(q) {
+  const out = [];
+  if (!q) return out;
+  for (const g of state.games) {
+    for (const t of g.tables || []) {
+      const seats = [["North", t.n, t.s], ["South", t.s, t.n], ["East", t.e, t.w], ["West", t.w, t.e]];
+      for (const [dir, name, partner] of seats) {
+        if (matchesQuery(name, q)) out.push({ gid: g.gid, game: g, table: t.num, dir, name, partner });
+      }
+    }
+  }
+  return out;
+}
+
+function render() {
+  const q = normQuery();
+  const games = state.games;
+
+  $("tabs").innerHTML = games.map(g => `<button type="button" data-gid="${escapeHtml(g.gid)}" aria-pressed="${g.gid === state.selected}">
+      ${escapeHtml(g.name)}${g.date ? `<span class="tdate">${escapeHtml(fmtDate(g.date))}</span>` : ""}</button>`).join("");
+
+  const ms = findMatches(q);
+  $("matches").innerHTML = ms.map((m, i) => `<li data-i="${i}">
+      <strong>${escapeHtml(m.name)}</strong> — Table ${escapeHtml(m.table)}, ${m.dir}
+      ${m.partner ? `(partner ${escapeHtml(m.partner)})` : ""}
+      · ${escapeHtml(m.game.name)}${m.game.date ? ", " + escapeHtml(fmtDate(m.game.date)) : ""}</li>`).join("") +
+    (q && !ms.length ? `<li class="nomatch" style="background:none;border:none;cursor:default">No one by that name is seated yet.</li>` : "");
+  state._matches = ms;
+
+  const g = games.find(x => x.gid === state.selected);
+  if (!g) {
+    $("game").innerHTML = state.error ? `<p class="error">${escapeHtml(state.error)}</p>` : `<p class="note">No games found.</p>`;
+  } else {
+    $("game").innerHTML = renderGame(g, q) + renderResults(g, q);
+  }
+  $("updated").textContent = state.updated
+    ? `Updated ${state.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · refreshes automatically`
+    : "Loading…";
+}
+
+async function load() {
+  try {
+    const tabs = await discoverTabs();
+    const resTab = tabs.find(t => t.name.trim().toLowerCase() === RESULTS_TAB_NAME.toLowerCase());
+    const gameTabs = tabs.filter(t => t !== resTab);
+
+    const [resRows, ...gameRows] = await Promise.all([
+      resTab ? fetchCSV(resTab.gid).catch(() => null) : Promise.resolve(null),
+      ...gameTabs.map(t => fetchCSV(t.gid).then(rows => ({ rows }), e => ({ error: e.message })))
+    ]);
+
+    const games = [];
+    gameTabs.forEach((t, i) => {
+      const r = gameRows[i];
+      if (r.error) { games.push({ name: t.name, gid: t.gid, date: null, tables: [], error: r.error }); return; }
+      const parsed = parseSeating(r.rows);
+      if (parsed) games.push({ name: t.name, gid: t.gid, date: parsed.date, tables: parsed.tables });
+    });
+
+    state.games = games;
+    state.results = resRows ? parseResults(resRows) : null;
+    if (!games.some(g => g.gid === state.selected)) state.selected = pickDefault(games);
+    state.error = null;
+    state.updated = new Date();
+  } catch (e) {
+    state.error = "Couldn't load the seating sheet. Please check your connection and try again.";
+  }
+  render();
+}
+
+$("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-gid]");
+  if (!b) return;
+  state.selected = b.dataset.gid;
+  render();
+});
+$("search").addEventListener("input", e => { state.query = e.target.value; render(); });
+$("matches").addEventListener("click", e => {
+  const li = e.target.closest("li[data-i]");
+  if (!li) return;
+  const m = state._matches[+li.dataset.i];
+  state.selected = m.gid;
+  render();
+  const card = document.getElementById("t-" + m.table);
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+load();
+setInterval(load, REFRESH_MS);
+</script>
+</body>
+</html>
