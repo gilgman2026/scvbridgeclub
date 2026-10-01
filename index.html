@@ -151,6 +151,8 @@ const FALLBACK_TABS = [
 ];
 const RESULTS_TAB_NAME = "Results";   // every other tab is treated as a game
 const REFRESH_MS = 60000;
+// A name column's list ends after this many empty cells in a row.
+const END_GAP = 3;
 // Where the game date lives: sheet rows 25-30, columns A-H (1-based, inclusive).
 const DATE_ROWS = [25, 30];
 const DATE_COLS = [1, 8];
@@ -458,11 +460,16 @@ function parseSeating(rows) {
   if (dr > hdr) { const rr = body[dr - hdr - 1]; if (rr) rr[dc] = ""; } // not a name
 
   const cols = [ns, ns + 1, ew, ew + 1];           // N, S, E, W
-  // Uninterrupted run from the first table down to the first blank, per column.
+  // For each name column, the list ends after END_GAP empty cells in a row
+  // (single blanks in the middle are tolerated: seats not assigned yet).
+  // The longest of the four columns sets how many tables are shown.
   const runs = cols.map(c => {
-    let n = 0;
-    while (n < body.length && (body[n][c] || "") !== "") n++;
-    return n;
+    let last = -1, blanks = 0;
+    for (let i = 0; i < body.length; i++) {
+      if ((body[i][c] || "") !== "") { last = i; blanks = 0; }
+      else if (++blanks >= END_GAP && last >= 0) break;
+    }
+    return last + 1;
   });
   const count = Math.max(...runs);
   const tables = [];
